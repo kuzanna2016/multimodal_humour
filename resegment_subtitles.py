@@ -12,7 +12,7 @@ from utils import clean_title, get_tier_by_name
 from swear_words import preproc_swear_word
 from numeric import ordinal_endings, change_numeric
 
-
+punctuation += '»«…—'
 def norm_subtitles_spans(sentences):
     sentences = [[round(s[0], 2), round(s[1], 2), s[2]] for s in sentences]
     for s0, s1 in zip(sentences, sentences[1:]):
@@ -151,6 +151,68 @@ def clean_text_with_mapping(text, for_mfa=True):
         return text_rv, tokens_map, indices
     return ' '.join(new_tokens), [], []
 
+def split_tokens_into_phrases(tokens, delta=0.4):
+    phrases = []
+    current_tokens = []
+    current_phrase_text = ''
+    for i, token in enumerate(tokens):
+        if i == 0:
+            current_phrase_text = token['text']
+            token['text_span'] = (0, len(token['text']))
+            current_tokens.append(token)
+            continue
+        previous_token = tokens[i - 1]
+        if not previous_token and not current_tokens:
+            current_phrase_text = token['text']
+            token['text_span'] = (0, len(token['text']))
+            current_tokens.append(token)
+            continue
+        else:
+            while not previous_token and i > 1:
+                i -= 1
+                previous_token = tokens[i - 1]
+
+        if not token:
+            if previous_token['text'][-1] in punctuation:
+                phrases.append({
+                    'text': ' '.join([t['text'] for t in current_tokens]),
+                    'audio_span': (current_tokens[0]['audio_span'][0], previous_token['audio_span'][1]),
+                    'token_spans': current_tokens
+                })
+                current_tokens = []
+                current_phrase_text = ''
+            continue
+
+        time_distance = token['audio_span'][0] - previous_token['audio_span'][1]
+        if previous_token['text'][-1] in punctuation and time_distance > 0.4:
+            phrases.append({
+                'text': ' '.join([t['text'] for t in current_tokens]),
+                'audio_span': (current_tokens[0]['audio_span'][0], previous_token['audio_span'][1]),
+                'token_spans': current_tokens
+            })
+            current_tokens = []
+            current_phrase_text = ''
+        elif time_distance >= 0.6:
+            phrases.append({
+                'text': ' '.join([t['text'] for t in current_tokens]),
+                'audio_span': (current_tokens[0]['audio_span'][0], previous_token['audio_span'][1]),
+                'token_spans': current_tokens
+            })
+            current_tokens = []
+            current_phrase_text = ''
+
+        current_phrase_text += ' ' + token['text']
+        token_start = len(current_phrase_text) - len(token['text'])
+        token_end = len(current_phrase_text)
+        token['text_span'] = (token_start, token_end)
+        current_tokens.append(token)
+    if current_tokens:
+        phrases.append({
+            'text': ' '.join([t['text'] for t in current_tokens]),
+            'audio_span': (current_tokens[0]['audio_span'][0], current_tokens[-1]['audio_span'][1]),
+            'token_spans': current_tokens
+        })  # Add the last phrase
+    return phrases
 
 def main(videos, sub_folder, aligned_folder):
     aligned_videos = {}
@@ -164,6 +226,7 @@ def main(videos, sub_folder, aligned_folder):
         words_intervals = get_tier_by_name(tg_aligned, 'words')
         words = [i for i in words_intervals if i.mark]
 
+        aligned_tokens = []
         for subtitle_index, (start, end, text) in enumerate(subtitles):
             if start == end:
                 continue
@@ -176,7 +239,24 @@ def main(videos, sub_folder, aligned_folder):
 
             words_taken = set(w for ws in tokens_mapping.values() for w in ws)
             assert len(words_taken) >= len(interval_words)
-            tokens_mapping = {t: [w for w in ws if w < len(interval_words)] for t, ws in tokens_mapping.items()}
+            for t, ws in tokens_mapping.items():
+                ws = [w for w in ws if w < len(interval_words)]
+                if not ws:
+                    audio_span = (-1,-1)
+                else:
+                    interval_start = min(w.minTime for i, w in enumerate(interval_words) if i in ws)
+                    interval_end = max(w.maxTime for i, w in enumerate(interval_words) if i in ws)
+                    audio_span = (interval_start, interval_end)
+                aligned_tokens.append(
+                    {
+                        'text': ''.join(c for i,c in zip(tokens_indices, cleaned_text) if i == t).strip(),
+                        'audio_span': audio_span,
+                    }
+                )
+            aligned_tokens.append({})
+        resegmented_phrases = split_tokens_into_phrases(aligned_tokens)
+
+
 
 
 
