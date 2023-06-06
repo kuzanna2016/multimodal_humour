@@ -1,0 +1,4 @@
+textgrid
+num2words
+tqdm
+numpy
