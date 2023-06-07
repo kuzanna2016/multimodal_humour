@@ -301,18 +301,18 @@ def main(videos, sub_folder, aligned_folder, videos_sorted=None, save_to=None):
 
         aligned_tokens = align_tokens_in_subtitles(subtitles, tg_aligned)
         segmented_phrases = split_tokens_into_phrases(aligned_tokens)
-        aligned_videos[video_index] = postprocess_phrases(segmented_phrases)
+        aligned_videos[video_name] = postprocess_phrases(segmented_phrases)
     if save_to is not None:
-        json.dump(aligned_videos, open(save_to, 'w'), ensure_ascii=False)
+        for video_name, phrases in aligned_videos.items():
+            json.dump(phrases, open(os.path.join(save_to, video_name + '.json'), 'w'), ensure_ascii=False)
     return aligned_videos
 
 
 if __name__ == '__main__':
     standup_root = '..'
     aligned_folder = os.path.join(standup_root, 'mfa_data/standup_rus_aligned_beam100_retry_beam400')
-    segmented_fp = os.path.join(standup_root, 'dataset','unlabeled.json')
+    segmented_folder = os.path.join(standup_root, 'subtitles_faligned')
     sub_folder = os.path.join(standup_root, 'sub')
     metadata = json.load(open('../meta_data.json', encoding='utf-8'))
-    metadata = {clean_title(k): v for k, v in metadata.items()}
     videos = sorted(list(metadata.keys()))
-    aligned_videos = main(videos, sub_folder, aligned_folder, save_to=segmented_fp)
+    aligned_videos = main(videos, sub_folder, aligned_folder, save_to=segmented_folder)
