@@ -2,7 +2,6 @@ import re
 import os
 import json
 from collections import defaultdict
-
 from tqdm import tqdm
 
 from string import punctuation
@@ -13,6 +12,18 @@ from swear_words import preproc_swear_word
 from numeric import ordinal_endings, change_numeric
 
 punctuation += '»«…—'
+punctuation = punctuation.replace(',', '')
+
+TOKENS_SPLIT = r'\s+|\b[+=,!?:;"»«…/.—-]+\b'
+
+PREPROCESSING_SUBSTITUTIONS = [
+    [r'(?<=\d)%(?=\s|$)', ' процентов', []],
+    [r'(?<=\d)%-', ' процент', []],
+    [r'(?<=\d)\s?ч(?=\s|$)', r' часов', []],
+    [r'(?<=\d)(час|лет|кг)', r' {}', [1]],
+]
+
+
 def norm_subtitles_spans(sentences):
     sentences = [[round(s[0], 2), round(s[1], 2), s[2]] for s in sentences]
     for s0, s1 in zip(sentences, sentences[1:]):
@@ -72,38 +83,30 @@ def perform_substitutions(text, substitutions, indices):
             new_token_indices = get_span_insert(indices, start, end, len(sub_repl))
             inserts.append([start, new_token_indices, end])
         for start, new_indices, end in sorted(inserts, reverse=True):
-            indices = np.concatenate([indices[:start], new_token_indices, indices[end:]]).flatten()
+            indices = np.concatenate([indices[:start], new_indices, indices[end:]]).flatten()
         assert len(indices) == len(text_sub)
         text = text_sub
     return text, indices
 
-
-TOKENS_SPLIT = r'\s+|\b[+=,!?:;"»«…/.—-]+\b'
-
-substitutions = [
-    [r'(?<=\d)%(?=\s|$)', ' процентов', []],
-    [r'(?<=\d)%-', ' процент', []],
-    [r'(?<=\d)\s?ч(?=\s|$)', r' часов', []],
-    [r'(?<=\d)(час|лет|кг)', r' {}', [1]],
-]
-
 def garbage_clean(text):
     text = re.sub(r'\d+\s\d+:\d+:\d+,?\d*\s-->\s\d+:\d+:\d+,?\d*\s', r'', text, flags=re.IGNORECASE)
     text = re.sub(r'\d+:\d+:\d+:\d+\s-\s\d+:\d+:\d+:\d+\s(speaker\s\d+)?', r'', text, flags=re.IGNORECASE)
-    text = re.sub(r'\[\s*__\s*\]', r'', text)
+    text = re.sub(r'\s*\[\s*__\s*\]\s*', r' ', text)
     text = re.sub(r'’', r"'", text)
-    text = re.sub(r'\s+', r' ', text)
+    text = re.sub(r'\s+', r' ', text.strip())
     text = re.sub(r'о-о-о', r'о о о', text, flags=re.IGNORECASE)
     text = re.sub(r'(\w)-(\1-?){2,}', r'\1', text, flags=re.IGNORECASE)
+    text = re.sub(r'(?<=\w)\s?([.,!?…]+)\s?(?=\w|$)', r'\1 ', text)
+    text = re.sub(r'(?<=\w)\s…', r'…', text)
     text = re.sub(ordinal_endings, r'\1\2', text)
+    text = re.sub(r'(?<=\w):(["«])\s?(?=\w)', r': \1', text)
     text = text.strip()
     return text
 
-def clean_text_with_mapping(text, for_mfa=True):
-    text_rv = text[:]
 
+def clean_text_with_mapping(text, for_mfa=True):
     indices, tokens = map_token_indices(text)
-    text, indices = perform_substitutions(text, substitutions, indices)
+    text, indices = perform_substitutions(text, PREPROCESSING_SUBSTITUTIONS, indices)
 
     indices_words, words = map_token_indices(text)
     assert len(indices) == len(indices_words)
@@ -148,125 +151,164 @@ def clean_text_with_mapping(text, for_mfa=True):
             backwards_step += 1
 
     if not for_mfa:
-        return text_rv, tokens_map, indices
-    return ' '.join(new_tokens), [], []
+        return tokens, tokens_map, indices
+    return new_tokens, [], []
 
-def split_tokens_into_phrases(tokens, delta=0.4):
+
+def add_new_phrase(phrases, current_tokens):
+    for token in current_tokens:
+        token.pop('isupper')
+    phrases.append({
+        'text': ' '.join([t['text'] for t in current_tokens]),
+        'audio_span': (current_tokens[0]['audio_span'][0], current_tokens[-1]['audio_span'][1]),
+        'token_spans': current_tokens
+    })
+    return [], '', phrases
+
+
+def iterate_until_valid_token(i, tokens, forward=True):
+    if forward:
+        while i + 1 < len(tokens) and (not tokens[i + 1] or tokens[i + 1]['audio_span'] == (-1, -1)):
+            i += 1
+        search_token = tokens[i + 1]
+    else:
+        while i > 1 and (not tokens[i - 1] or tokens[i - 1]['audio_span'] == (-1, -1)):
+            i -= 1
+        search_token = tokens[i - 1]
+    return search_token
+
+
+def split_tokens_into_phrases(tokens, delta_punctuation=0.3, delta_no_punctuation=0.6):
     phrases = []
     current_tokens = []
     current_phrase_text = ''
+    for token in tokens:
+        if not token:
+            continue
+        token['isupper'] = token.get('text', ' ')[0].isupper()
+
     for i, token in enumerate(tokens):
+        token_text = token.get('text', '')
         if i == 0:
-            current_phrase_text = token['text']
-            token['text_span'] = (0, len(token['text']))
+            current_phrase_text = token_text
+            token['text_span'] = (0, len(token_text))
             current_tokens.append(token)
             continue
         previous_token = tokens[i - 1]
-        if not previous_token and not current_tokens:
-            current_phrase_text = token['text']
-            token['text_span'] = (0, len(token['text']))
+        if not current_tokens and token['audio_span'] != (-1, -1) and (
+                not previous_token or previous_token['audio_span'] == (-1, -1)):
+            current_phrase_text = token_text
+            token['text_span'] = (0, len(token_text))
             current_tokens.append(token)
             continue
         else:
-            while not previous_token and i > 1:
-                i -= 1
-                previous_token = tokens[i - 1]
+            previous_token = iterate_until_valid_token(i, tokens, forward=False)
 
         if not token:
             if previous_token['text'][-1] in punctuation:
-                phrases.append({
-                    'text': ' '.join([t['text'] for t in current_tokens]),
-                    'audio_span': (current_tokens[0]['audio_span'][0], previous_token['audio_span'][1]),
-                    'token_spans': current_tokens
-                })
-                current_tokens = []
-                current_phrase_text = ''
+                current_tokens, current_phrase_text, phrases = add_new_phrase(phrases, current_tokens)
+            continue
+        elif token['audio_span'] == (-1, -1):
+            next_token = iterate_until_valid_token(i, tokens, forward=True)
+            next_token['text'] = token_text + ' ' + next_token.get('text', '')
             continue
 
         time_distance = token['audio_span'][0] - previous_token['audio_span'][1]
-        if previous_token['text'][-1] in punctuation and time_distance > 0.4:
-            phrases.append({
-                'text': ' '.join([t['text'] for t in current_tokens]),
-                'audio_span': (current_tokens[0]['audio_span'][0], previous_token['audio_span'][1]),
-                'token_spans': current_tokens
-            })
-            current_tokens = []
-            current_phrase_text = ''
-        elif time_distance >= 0.6:
-            phrases.append({
-                'text': ' '.join([t['text'] for t in current_tokens]),
-                'audio_span': (current_tokens[0]['audio_span'][0], previous_token['audio_span'][1]),
-                'token_spans': current_tokens
-            })
-            current_tokens = []
-            current_phrase_text = ''
+        if previous_token['text'][-1] in punctuation:
+            if token.get('isupper', False):
+                current_tokens, current_phrase_text, phrases = add_new_phrase(phrases, current_tokens)
+            elif time_distance >= delta_punctuation:
+                current_tokens, current_phrase_text, phrases = add_new_phrase(phrases, current_tokens)
+        elif time_distance >= delta_no_punctuation:
+            current_tokens, current_phrase_text, phrases = add_new_phrase(phrases, current_tokens)
 
-        current_phrase_text += ' ' + token['text']
-        token_start = len(current_phrase_text) - len(token['text'])
+        current_phrase_text += ' ' + token_text
+        current_phrase_text = current_phrase_text.strip()
+        token_start = len(current_phrase_text) - len(token_text)
         token_end = len(current_phrase_text)
         token['text_span'] = (token_start, token_end)
         current_tokens.append(token)
     if current_tokens:
-        phrases.append({
-            'text': ' '.join([t['text'] for t in current_tokens]),
-            'audio_span': (current_tokens[0]['audio_span'][0], current_tokens[-1]['audio_span'][1]),
-            'token_spans': current_tokens
-        })  # Add the last phrase
+        current_tokens, current_phrase_text, phrases = add_new_phrase(phrases, current_tokens)
     return phrases
 
-def main(videos, sub_folder, aligned_folder):
+
+def align_tokens_in_subtitles(subtitles, tg_aligned):
+    words_intervals = get_tier_by_name(tg_aligned, 'words')
+    words = [i for i in words_intervals if i.mark]
+
+    aligned_tokens = []
+    for subtitle_index, (start, end, text) in enumerate(subtitles):
+        if start == end:
+            continue
+        cleaned_text = garbage_clean(text)
+        text_tokens, tokens_mapping, tokens_indices = clean_text_with_mapping(cleaned_text, for_mfa=False)
+        interval_words = [w for w in words if w.minTime < end and w.maxTime > start]
+        interval_strs = [w.mark.lower() for w in interval_words]
+        if not interval_strs:
+            continue
+
+        words_taken = set(w for ws in tokens_mapping.values() for w in ws)
+        assert len(words_taken) >= len(interval_words)
+        for t, ws in tokens_mapping.items():
+            ws = [w for w in ws if w < len(interval_words)]
+            if not ws:
+                audio_span = (-1, -1)
+            else:
+                interval_start = min(w.minTime for i, w in enumerate(interval_words) if i in ws)
+                interval_end = max(w.maxTime for i, w in enumerate(interval_words) if i in ws)
+                audio_span = (interval_start, interval_end)
+            aligned_tokens.append(
+                {
+                    'text': text_tokens[t].strip(),
+                    'audio_span': audio_span,
+                }
+            )
+        aligned_tokens.append({})
+    return aligned_tokens
+
+
+def postprocess_phrases(phrases):
+    for phrase in phrases:
+        text = phrase['text']
+        if re.search(r'(?<=\w) -(?=\w)', text) is None:
+            continue
+        indices = np.zeros(len(text))
+        for i, t in enumerate(phrase['token_spans']):
+            indices[max(t['text_span'][0] - 1,0):t['text_span'][1]] = i
+        sub_text, sub_indices = perform_substitutions(text, [[r'(?<=\w) -(?=\w)', r'-', []]], indices)
+        phrase['text'] = sub_text
+        for i, t in enumerate(phrase['token_spans']):
+            ixs = np.where(sub_indices == i)[0]
+            start = ixs.min()
+            start = start + 1 if start > 0 and len(ixs) > len(t['text']) else start
+            end = ixs.max() + 1
+            t['text_span'] = (start, end)
+            assert sub_text[start:end] == t['text']
+    return phrases
+
+def main(videos, sub_folder, aligned_folder, videos_sorted=None):
     aligned_videos = {}
     for video_index, video_name in enumerate(tqdm(videos)):
+        video_index = video_index if videos_sorted is None else videos_sorted.index(video_name)
         subtitles = json.load(open(os.path.join(sub_folder, video_name + '.json')))
         subtitles = norm_subtitles_spans(subtitles)
 
         textgrid_fp = os.path.join(aligned_folder, f"{video_index}.TextGrid")
         tg_aligned = textgrid.TextGrid()
         tg_aligned.read(textgrid_fp)
-        words_intervals = get_tier_by_name(tg_aligned, 'words')
-        words = [i for i in words_intervals if i.mark]
 
-        aligned_tokens = []
-        for subtitle_index, (start, end, text) in enumerate(subtitles):
-            if start == end:
-                continue
-            text = garbage_clean(text)
-            cleaned_text, tokens_mapping, tokens_indices = clean_text_with_mapping(text, for_mfa=False)
-            interval_words = [w for w in words if w.minTime < end and w.maxTime > start]
-            interval_strs = [w.mark.lower() for w in interval_words]
-            if not interval_strs:
-                continue
-
-            words_taken = set(w for ws in tokens_mapping.values() for w in ws)
-            assert len(words_taken) >= len(interval_words)
-            for t, ws in tokens_mapping.items():
-                ws = [w for w in ws if w < len(interval_words)]
-                if not ws:
-                    audio_span = (-1,-1)
-                else:
-                    interval_start = min(w.minTime for i, w in enumerate(interval_words) if i in ws)
-                    interval_end = max(w.maxTime for i, w in enumerate(interval_words) if i in ws)
-                    audio_span = (interval_start, interval_end)
-                aligned_tokens.append(
-                    {
-                        'text': ''.join(c for i,c in zip(tokens_indices, cleaned_text) if i == t).strip(),
-                        'audio_span': audio_span,
-                    }
-                )
-            aligned_tokens.append({})
-        resegmented_phrases = split_tokens_into_phrases(aligned_tokens)
-
-
-
-
+        aligned_tokens = align_tokens_in_subtitles(subtitles, tg_aligned)
+        segmented_phrases = split_tokens_into_phrases(aligned_tokens)
+        aligned_videos[video_name] = postprocess_phrases(segmented_phrases)
+    return aligned_videos
 
 
 if __name__ == '__main__':
     standup_root = '..'
     aligned_folder = os.path.join(standup_root, 'mfa_data/standup_rus_aligned_beam100_retry_beam400')
-    sub_splitted_folder = os.path.join(standup_root, 'subtitles_merged_splitted')
     sub_folder = os.path.join(standup_root, 'sub')
     metadata = json.load(open('../meta_data.json', encoding='utf-8'))
     metadata = {clean_title(k): v for k, v in metadata.items()}
-    videos = sorted(metadata.keys())
-    main(videos, sub_folder, aligned_folder)
+    videos = sorted(list(metadata.keys()))
+    aligned_videos = main(videos, sub_folder, aligned_folder)

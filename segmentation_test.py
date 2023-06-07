@@ -71,6 +71,6 @@ if __name__ == '__main__':
     error_rate = []
     for video_name, s in stats.items():
         print(video_name)
-        print('{:.2f}'.format(s['pos'] / s['tr']))
+        print('{:.2f}'.format(1 - s['pos'] / s['tr']))
         error_rate.append(s['pos'] / s['tr'])
-    print(f'Mean error rate is {np.mean(error_rate):.2f}')
+    print(f'Mean error rate is {1 - np.mean(error_rate):.2f}')
