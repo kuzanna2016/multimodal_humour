@@ -273,7 +273,7 @@ def postprocess_phrases(phrases):
         text = phrase['text']
         if re.search(r'(?<=\w) -(?=\w)', text) is None:
             continue
-        indices = np.zeros(len(text))
+        indices = np.zeros(len(text), dtype=int)
         for i, t in enumerate(phrase['token_spans']):
             indices[max(t['text_span'][0] - 1,0):t['text_span'][1]] = i
         sub_text, sub_indices = perform_substitutions(text, [[r'(?<=\w) -(?=\w)', r'-', []]], indices)
@@ -283,11 +283,12 @@ def postprocess_phrases(phrases):
             start = ixs.min()
             start = start + 1 if start > 0 and len(ixs) > len(t['text']) else start
             end = ixs.max() + 1
+            start, end = start.item(), end.item()
             t['text_span'] = (start, end)
             assert sub_text[start:end] == t['text']
     return phrases
 
-def main(videos, sub_folder, aligned_folder, videos_sorted=None):
+def main(videos, sub_folder, aligned_folder, videos_sorted=None, save_to=None):
     aligned_videos = {}
     for video_index, video_name in enumerate(tqdm(videos)):
         video_index = video_index if videos_sorted is None else videos_sorted.index(video_name)
@@ -300,15 +301,18 @@ def main(videos, sub_folder, aligned_folder, videos_sorted=None):
 
         aligned_tokens = align_tokens_in_subtitles(subtitles, tg_aligned)
         segmented_phrases = split_tokens_into_phrases(aligned_tokens)
-        aligned_videos[video_name] = postprocess_phrases(segmented_phrases)
+        aligned_videos[video_index] = postprocess_phrases(segmented_phrases)
+    if save_to is not None:
+        json.dump(aligned_videos, open(save_to, 'w'), ensure_ascii=False)
     return aligned_videos
 
 
 if __name__ == '__main__':
     standup_root = '..'
     aligned_folder = os.path.join(standup_root, 'mfa_data/standup_rus_aligned_beam100_retry_beam400')
+    segmented_fp = os.path.join(standup_root, 'dataset','unlabeled.json')
     sub_folder = os.path.join(standup_root, 'sub')
     metadata = json.load(open('../meta_data.json', encoding='utf-8'))
     metadata = {clean_title(k): v for k, v in metadata.items()}
     videos = sorted(list(metadata.keys()))
-    aligned_videos = main(videos, sub_folder, aligned_folder)
+    aligned_videos = main(videos, sub_folder, aligned_folder, save_to=segmented_fp)
