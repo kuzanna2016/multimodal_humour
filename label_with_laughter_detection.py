@@ -1,11 +1,8 @@
 import os
 import json
-from collections import defaultdict
 from tqdm import tqdm
-import subprocess
 from laughter_detection_model import set_up_ld_model, load, predict, cut_threshold
-from sklearn.metrics import precision_recall_fscore_support
-from utils import interval_overlap, cut_segment, load_validation_data
+from utils import interval_overlap, cut_segment
 from laughter_detection_cross_validation import get_search_windows
 
 
@@ -44,4 +41,4 @@ if __name__ == '__main__':
     standup_root = '/data/disk1/share/akuznetsova/standup_rus'
     audio_folder = os.path.join(standup_root, 'voice-remover')
     meta_data = json.load(open(os.path.join(standup_root, 'meta_data.json')))
-    main(standup_root, audio_folder, meta_data)
+    main(standup_root, audio_folder, meta_data, threshold=0.3, min_length=0.01)
