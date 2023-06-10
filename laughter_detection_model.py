@@ -28,7 +28,7 @@ def set_up_ld_model():
     return model, feature_fn, sample_rate, config, device
 
 
-def load(audio_path, feature_fn, sample_rate, config, model):
+def load(audio_path, feature_fn, sample_rate, config):
     ##### Load the audio file and features
 
     inference_dataset = data_loaders.SwitchBoardLaughterInferenceDataset(
