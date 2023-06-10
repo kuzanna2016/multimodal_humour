@@ -27,7 +27,7 @@ def main(standup_root, audio_folder, meta_data, threshold, min_length, min_windo
 
             cut_segment(audio_fp, cut_start, cut_end_for_ld, temp_fp=standup_root, rm=False, with_codec=True)
             inference_generator = load(temp_fp, feature_fn, sample_rate, config)
-            probs = predict(inference_generator, device)
+            probs = predict(model, inference_generator, device)
             instances = cut_threshold(probs, threshold, min_length, temp_fp, log=0)
             instances = [(s, e) for s, e in instances if
                          interval_overlap((s + cut_start, e + cut_start), (cut_start, cut_end)) > 0]
@@ -39,6 +39,6 @@ def main(standup_root, audio_folder, meta_data, threshold, min_length, min_windo
 
 if __name__ == '__main__':
     standup_root = '/data/disk1/share/akuznetsova/standup_rus'
-    audio_folder = os.path.join(standup_root, 'voice-remover')
+    audio_folder = os.path.join(standup_root, 'vocal-remover')
     meta_data = json.load(open(os.path.join(standup_root, 'meta_data.json')))
     main(standup_root, audio_folder, meta_data, threshold=0.3, min_length=0.01)

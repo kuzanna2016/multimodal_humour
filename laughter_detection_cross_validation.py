@@ -27,7 +27,7 @@ def get_search_windows(subtitles, max_duration, max_window_length=0.7, min_pause
     yield (end, min([end + max_window_length, max_duration]))
 
 
-def window_cross_validation(pred, condition, search_windows, audio_fp, temp_fp, feature_fn, sample_rate,
+def window_cross_validation(model, pred, condition, search_windows, audio_fp, temp_fp, feature_fn, sample_rate,
                             config, device, duration, min_window_length_for_ld=1.3):
     for (cut_start, cut_end) in tqdm(search_windows):
         cut_end_for_ld = max(cut_end, cut_start + min_window_length_for_ld)
@@ -41,7 +41,7 @@ def window_cross_validation(pred, condition, search_windows, audio_fp, temp_fp, 
         else:
             cut_segment(audio_fp, cut_start, cut_end_for_ld, temp_fp=standup_root, rm=False)
         inference_generator = load(temp_fp, feature_fn, sample_rate, config)
-        probs = predict(inference_generator, device)
+        probs = predict(model, inference_generator, device)
         for threshold in [0.1, 0.2, 0.3, 0.4, 0.5]:
             for min_length in [0.01, 0.05, 0.1, 0.15, 0.2]:
                 instances = cut_threshold(probs, threshold, min_length, temp_fp, log=0)
@@ -52,14 +52,14 @@ def window_cross_validation(pred, condition, search_windows, audio_fp, temp_fp, 
     return pred
 
 
-def whole_cross_validation(pred, condition, search_windows, audio_fp, temp_fp, feature_fn, sample_rate, config, device):
+def whole_cross_validation(model, pred, condition, search_windows, audio_fp, temp_fp, feature_fn, sample_rate, config, device):
     if condition == 'vocal-remover':
         subprocess.run(
             f'ffmpeg -i "{audio_fp}" -c:a aac "{temp_fp}"  -hide_banner -loglevel error',
             shell=True, check=True, text=True)
         audio_fp = temp_fp
     inference_generator = load(audio_fp, feature_fn, sample_rate, config)
-    probs = predict(inference_generator, device)
+    probs = predict(model, inference_generator, device)
     for threshold in [0.1, 0.2, 0.3, 0.4, 0.5]:
         for min_length in [0.01, 0.05, 0.1, 0.15, 0.2]:
             instances = cut_threshold(probs, threshold, min_length, audio_fp, log=0)
@@ -93,11 +93,11 @@ def main(standup_root, audio_folder, meta_data, titles, validation_type='whole')
             duration = meta_data[video_name].get('duration', subtitles[-1][1])
             search_windows = list(get_search_windows(subtitles, max_duration=duration))
             if validation_type == 'window':
-                pred = window_cross_validation(pred, condition, search_windows, audio_fp, temp_fp, feature_fn,
+                pred = window_cross_validation(model, pred, condition, search_windows, audio_fp, temp_fp, feature_fn,
                                                sample_rate,
                                                config, device, duration)
             elif validation_type == 'whole':
-                pred = whole_cross_validation(pred, condition, search_windows, audio_fp, temp_fp, feature_fn,
+                pred = whole_cross_validation(model, pred, condition, search_windows, audio_fp, temp_fp, feature_fn,
                                               sample_rate, config, device)
             else:
                 raise ValueError(f'No validation type {validation_type}')

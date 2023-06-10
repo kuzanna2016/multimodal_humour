@@ -28,7 +28,7 @@ def set_up_ld_model():
     return model, feature_fn, sample_rate, config, device
 
 
-def load(audio_path, feature_fn, sample_rate, config):
+def load(audio_path, feature_fn, sample_rate, config, model):
     ##### Load the audio file and features
 
     inference_dataset = data_loaders.SwitchBoardLaughterInferenceDataset(
@@ -42,7 +42,7 @@ def load(audio_path, feature_fn, sample_rate, config):
     return inference_generator
 
 
-def predict(inference_generator, device):
+def predict(model, inference_generator, device):
     ##### Make Predictions
 
     probs = []
