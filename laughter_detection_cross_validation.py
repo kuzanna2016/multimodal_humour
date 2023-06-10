@@ -37,9 +37,9 @@ def window_cross_validation(pred, condition, search_windows, audio_fp, temp_fp, 
                     pred[f'th{threshold}_ml{min_length}_{condition}'].append(0)
             continue
         if condition == 'vocal-remover':
-            cut_segment(audio_fp, cut_start, cut_end_for_ld, rm=False, play=False, ext='mp4', with_codec=True)
+            cut_segment(audio_fp, cut_start, cut_end_for_ld, temp_fp=standup_root, rm=False, with_codec=True)
         else:
-            cut_segment(audio_fp, cut_start, cut_end_for_ld, rm=False, play=False)
+            cut_segment(audio_fp, cut_start, cut_end_for_ld, temp_fp=standup_root, rm=False)
         inference_generator = load(temp_fp, feature_fn, sample_rate, config)
         probs = predict(inference_generator, device)
         for threshold in [0.1, 0.2, 0.3, 0.4, 0.5]:
