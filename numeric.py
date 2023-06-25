@@ -22,6 +22,8 @@ def maybe_to_numeric(val):
     val_ = re.sub(r'\s', '', val)
     if '.' in val_ and ',' in val_:
         val_ = val_.replace(',', '')
+    elif ',' in val_:
+      val_ = val_.replace(',', '')
     val_ = val_.replace(',', '.')
     if val_.isnumeric():
         type_ = float if '.' in val_ else int

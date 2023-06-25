@@ -8,6 +8,7 @@ def clean_title(title):
     title = re.sub(r'[|.,"/]', r'', title)
     title = re.sub(r'й', r'й', title)
     title = re.sub(r'ё', r'ё', title)
+    title = re.sub(r'é',r'é', title)
     return title
 
 
@@ -68,3 +69,13 @@ def cut_segment(fp, start, end, temp_fp='', play=True, rm=True, ext='mp4', with_
             shell=True, check=True, text=True)
     if rm:
         os.remove(temp_fp)
+
+
+def norm_subtitles_spans(sentences):
+    sentences = [[round(s[0], 2), round(s[1], 2), s[2]] for s in sentences]
+    for s0, s1 in zip(sentences, sentences[1:]):
+        if s0[1] > s1[0]:
+            start, end = s1[0], s0[1]
+            s0[1] = start
+            s1[0] = end
+    return sentences

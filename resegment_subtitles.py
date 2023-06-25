@@ -7,7 +7,7 @@ from tqdm import tqdm
 from string import punctuation
 import numpy as np
 import textgrid
-from utils import clean_title, get_tier_by_name
+from utils import get_tier_by_name, norm_subtitles_spans
 from swear_words import preproc_swear_word
 from numeric import ordinal_endings, change_numeric
 
@@ -22,16 +22,6 @@ PREPROCESSING_SUBSTITUTIONS = [
     [r'(?<=\d)\s?ч(?=\s|$)', r' часов', []],
     [r'(?<=\d)(час|лет|кг)', r' {}', [1]],
 ]
-
-
-def norm_subtitles_spans(sentences):
-    sentences = [[round(s[0], 2), round(s[1], 2), s[2]] for s in sentences]
-    for s0, s1 in zip(sentences, sentences[1:]):
-        if s0[1] > s1[0]:
-            start, end = s1[0], s0[1]
-            s0[1] = start
-            s1[0] = end
-    return sentences
 
 
 def map_token_indices(text):
@@ -309,10 +299,10 @@ def main(videos, sub_folder, aligned_folder, videos_sorted=None, save_to=None):
 
 
 if __name__ == '__main__':
-    standup_root = '..'
-    aligned_folder = os.path.join(standup_root, 'mfa_data/standup_rus_aligned_beam100_retry_beam400')
+    standup_root = '../standup_eng'
+    aligned_folder = os.path.join(standup_root, 'mfa_data/standup_eng_aligned_beam100_retry_beam400')
     segmented_folder = os.path.join(standup_root, 'subtitles_faligned')
-    sub_folder = os.path.join(standup_root, 'sub')
-    metadata = json.load(open('../meta_data.json', encoding='utf-8'))
+    sub_folder = os.path.join(standup_root, 'sub_postproc')
+    metadata = json.load(open(os.path.join(standup_root, 'meta_data.json'), encoding='utf-8'))
     videos = sorted(list(metadata.keys()))
     aligned_videos = main(videos, sub_folder, aligned_folder, save_to=segmented_folder)
