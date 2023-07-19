@@ -33,6 +33,7 @@ def get_tokens(text):
         tokens.append(text)
     return tokens
 
+
 def garbage_clean(text):
     text = re.sub(r'[^\w\']', r'', text)
     text = re.sub(r'\s+', r' ', text.strip())
@@ -240,6 +241,7 @@ def align(videos, sub_folder, aligned_folder, videos_sorted=None, save_to=None):
             json.dump(segmented_phrases, open(os.path.join(save_to, video_name + '.json'), 'w'), ensure_ascii=False)
     return aligned_videos
 
+
 def main(args):
     aligned_folder = args.mfa_aligned_root
     segmented_folder = os.path.join(args.dataset_root, 'subtitles_faligned')
@@ -247,7 +249,6 @@ def main(args):
     metadata = json.load(open(os.path.join(args.dataset_root, 'meta_data.json'), encoding='utf-8'))
     videos = sorted(list(metadata.keys()))
     align(videos, sub_folder, aligned_folder, save_to=segmented_folder)
-
 
 
 if __name__ == '__main__':
