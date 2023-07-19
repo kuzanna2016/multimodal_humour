@@ -7,16 +7,15 @@ from tqdm import tqdm
 import subprocess
 from string import punctuation
 from utils import norm_subtitles_spans, clean_title
-from numeric import change_numeric_rus, ordinal_endings, NUMBER_REGEXP, change_numeric_eng
+from numeric import change_numeric_rus, NUMBER_REGEXP, change_numeric_eng
 from swear_words_rus import REGEXPS as REGEXPS_RUS
-
-REPLACED_SWEARS_DICT = json.load(open('replaced_swears.json'))
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--dataset_root", type=str, default='../standup_dataset', help="Path to the dataset folder")
 parser.add_argument("--do_audio", action="store_true", help="Whether to also prepare audio")
 parser.add_argument("--lang", type=str, default='ENG', help="RUS or ENG dataset to preprocess")
+
 
 def convert_sentences_to_textgrid(sentences, output_file, speaker_name):
     tg = textgrid.TextGrid()
@@ -50,17 +49,11 @@ def clean_up_whitespace(s):
 
 
 # ==============================================================================================================
-def preproc_rus(text):
-    text = re.sub(r'\d+\s\d+:\d+:\d+,?\d*\s-->\s\d+:\d+:\d+,?\d*\s', r'', text, flags=re.IGNORECASE)
-    text = re.sub(r'\d+:\d+:\d+:\d+\s-\s\d+:\d+:\d+:\d+\s(speaker\s\d+)?', r'', text, flags=re.IGNORECASE)
-    text = re.sub(r'\[\s*__\s*\]', r'', text)
-    text = re.sub(r'’', r"'", text)
+def prepare_rus(text):
     text = re.sub(r'(\d)%\s', r'\1 процентов ', text)
     text = re.sub(r'(\d)%-', r'\1 процент', text)
     text = re.sub(r'(\d)\s?ч\s', r'\1 часов ', text)
     text = re.sub(r'(\d)(час|лет|кг)', r'\1 \2', text)
-    text = re.sub(r'(\w)-(\1-?){2,}', r'\1', text)
-    text = re.sub(ordinal_endings, r'\1\2', text)
     words = re.split(r'\s+|\b[+=,!?:;"»«…/.—-]+\b', text, flags=re.IGNORECASE)
 
     new_words = []
@@ -80,32 +73,6 @@ def preproc_rus(text):
 
 # ==============================================================================================================
 
-def preproc_swear_words_with_dict(s, video_name):
-    if "*" in s:
-        replace = [r['replaced'] for r in REPLACED_SWEARS_DICT[video_name] if s == r['orig']][0]
-        return replace
-    else:
-        return s
-
-
-def clean_up_subtitle_turns_and_music(s):
-    s = re.sub(r'♪', r'', s)
-    s = re.sub(r'(?:- )?[([].*?[])]:?', r'', s)
-    s = re.sub(r'\s+', r' ', s)
-    return s.strip()
-
-
-SPEAKER_REGEXP = re.compile(r'(?:- )?(?:audience|(?:male )?announcer|(?:wo)?man ?\d?|both|all|chris|zach)(?:>>|:)',
-                            flags=re.IGNORECASE)
-
-
-def clean_up_speaker_info(s):
-    s = re.sub(r'♪', r'', s)
-    s = re.sub(r'(?:- )?[([].*?[])]:?', r'', s)
-    s = re.sub(r'\s+', r' ', s)
-    return s.strip()
-
-
 def update_numbers(s):
     m = re.search(NUMBER_REGEXP, s)
     if m is not None:
@@ -113,45 +80,32 @@ def update_numbers(s):
     return s
 
 
-def preproc_eng(text, video_name):
-    text = clean_up_whitespace(text)
-    text = preproc_swear_words_with_dict(text, video_name)
-    text = clean_up_whitespace(text)
-    if "captioned" in text.lower() or 'captioning' in text.lower():
-        return ''
-    text = clean_up_subtitle_turns_and_music(text)
-    text = clean_up_whitespace(text)
-    text = SPEAKER_REGEXP.sub(r'', text)
-    text = clean_up_whitespace(text)
-    if re.match(r'^\W+$', text) is not None:
-        return ''
+def prepare_eng(text):
     text = update_numbers(text)
     return text
 
 
 # ==============================================================================================================
 
-PREPROCS = {
-    'ENG': preproc_eng,
-    'RUS': preproc_rus,
-}
-
 
 def main(args):
     corpus_folder = os.path.join(args.dataset_root, 'mfa_data')
     os.makedirs(corpus_folder, exist_ok=True)
+    subtitles_folder = os.path.join(args.dataset_root, 'sub_postproc')
     metadata = json.load(open(os.path.join(args.dataset_root, 'meta_data.json'), encoding='utf-8'))
-    clean_text = PREPROCS.get(args.lang, lambda x: x)
 
     videos = sorted(metadata.keys())
-    for file in tqdm(os.listdir(os.path.join(args.dataset_root, 'sub'))):
+    for file in tqdm(os.listdir(os.path.join(subtitles_folder))):
         video_name = os.path.splitext(file)[0]
         video_name = clean_title(video_name)
         video_index = videos.index(video_name)
         textgrid_fp = os.path.join(corpus_folder, f"{video_index}.TextGrid")
 
-        subtitles = json.load(open(os.path.join(args.dataset_root, 'sub', file)))
-        subtitles = [[*s[:2], clean_text(s[2])] for s in subtitles if s[0] != s[1]]
+        subtitles = json.load(open(os.path.join(subtitles_folder, file)))
+        if args.lang == 'RUS':
+            subtitles = [[*s[:2], prepare_rus(s[2])] for s in subtitles if s[0] != s[1]]
+        elif args.lang == 'ENG':
+            subtitles = [[*s[:2], prepare_eng(s[2])] for s in subtitles if s[0] != s[1]]
         subtitles = [s for s in subtitles if s[2]]
         convert_sentences_to_textgrid(subtitles, textgrid_fp, metadata[video_name]['channel'])
 
@@ -161,6 +115,7 @@ def main(args):
             subprocess.run(
                 f'ffmpeg -i "{audio_path}" "{audio_path_wav}"  -hide_banner -loglevel error',
                 shell=True, check=True, text=True)
+
 
 if __name__ == '__main__':
     args = parser.parse_args([] if "__file__" not in globals() else None)

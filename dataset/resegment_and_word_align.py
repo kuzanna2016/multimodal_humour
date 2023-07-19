@@ -10,7 +10,7 @@ import numpy as np
 import textgrid
 from utils import get_tier_by_name, norm_subtitles_spans
 from swear_words import preproc_swear_word
-from numeric import ordinal_endings, change_numeric, maybe_to_numeric
+from numeric import ordinal_endings, change_numeric_rus, maybe_to_numeric
 
 punctuation += '»«…—'
 punctuation = punctuation.replace(',', '')
