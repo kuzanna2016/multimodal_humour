@@ -11,11 +11,10 @@ parser.add_argument("--dataset_root", type=str, default='../standup_dataset', he
 
 
 def main(args):
-    extracted_laughter_from_sub_folder = os.path.join(args.dataset_root, 'extracted_laughter_from_sub')
+    extracted_laughter_from_sub_folder = os.path.join(args.dataset_root, 'textual_laughter_markers')
     os.makedirs(extracted_laughter_from_sub_folder, exist_ok=True)
 
     for fn in os.listdir(os.path.join(args.dataset_root, 'sub')):
-      video_name = os.path.splitext(fn)[0]
       subtitles = json.load(open(os.path.join(args.dataset_root, 'sub', fn)))
       laughs = [
           [start, end, s]
