@@ -1,5 +1,3 @@
-import re
-
 REGEXPS = (
     (r'(\w*[уэоаыяиюъ]|^)\*+б', r'\1еб'),
     (r'(\w*[уэоаыяиюъ]|^)\*+(а|ок)', r'\1еб\2'),
@@ -38,11 +36,3 @@ REGEXPS = (
     (r'п\*+з?ж', r'пизж'),
     (r'п\*+(нуть|т|$)', r'пизда\1'),
 )
-
-
-def preproc_swear_word(word):
-    for reg, rep in REGEXPS:
-        word = re.sub(reg, rep, word, flags=re.IGNORECASE)
-        if '*' not in word:
-            return word
-    return word
