@@ -1,144 +1,37 @@
 import re
 import os
 import json
-from collections import defaultdict
 from tqdm import tqdm
-from num2words import num2words
-
+import argparse
 from string import punctuation
-import numpy as np
 import textgrid
 from utils import get_tier_by_name, norm_subtitles_spans
-from swear_words import preproc_swear_word
-from numeric import ordinal_endings, change_numeric_rus, maybe_to_numeric
 
 punctuation += '»«…—'
 punctuation = punctuation.replace(',', '')
 
 TOKENS_SPLIT = r'\s+|\b[+=,!?:;"»«…/.—-]+\b'
 
-PREPROCESSING_SUBSTITUTIONS = [
-    [r'(?<=\d)%(?=\s|$)', ' процентов', []],
-    [r'(?<=\d)%-', ' процент', []],
-    [r'(?<=\d)\s?ч(?=\s|$)', r' часов', []],
-    [r'(?<=\d)(час|лет|кг)', r' {}', [1]],
-]
+parser = argparse.ArgumentParser()
 
-NUMBER_REGEXP = r"\d+(?:[,\d]*\d)?(?:\.\d+)?"
+parser.add_argument("--dataset_root", type=str, default='../standup_dataset', help="Path to the dataset folder")
+parser.add_argument("--mfa_aligned_root", type=str, default='../standup_dataset', help="Path to the dataset folder")
 
 
-def convert_number_to_word(n):
-    if '911' in n:
-        n = n.replace('911', 'nine one one')
-
-    if '$' in n:
-        n = n.replace('$', '')
-
-        text = re.sub(NUMBER_REGEXP, lambda x: num2words(maybe_to_numeric(x.group(0)), lang='en') + ' dollars', n)
-        return text
-
-    if ':' in n:
-        h, m = n.split(':')
-        text = re.sub(NUMBER_REGEXP, lambda x: num2words(maybe_to_numeric(x.group(0)), lang='en'), h)
-        text += ' ' + re.sub(NUMBER_REGEXP,
-                             lambda x: num2words(maybe_to_numeric(x.group(0)), lang='en') if maybe_to_numeric(
-                                 x.group(0)) != 0 else '',
-                             m)
-        return text
-
-    if re.search(r"1\d{3}", n) is not None:
-        if re.search(r"\d\d00", n) is not None:
-            n = re.sub(r'00', r' hundred', n)
-            text = re.sub(NUMBER_REGEXP, lambda x: ' ' + num2words(maybe_to_numeric(x.group(0)), lang='en'), n)
-        else:
-            text = re.sub(r'\d{2}', lambda x: ' ' + num2words(maybe_to_numeric(x.group(0)), lang='en'), n)
-        text = text.replace("'s", 's')
-        text = text.replace('tys', 'ties')
-        return text
-
-    if '%' in n:
-        n = n.replace('%', ' percent')
-        text = re.sub(NUMBER_REGEXP, lambda x: num2words(maybe_to_numeric(x.group(0)), lang='en'), n)
-        return text
-
-    if re.search(r"\d'?s", n) is not None:
-        text = re.sub(NUMBER_REGEXP, lambda x: num2words(maybe_to_numeric(x.group(0)), lang='en'), n)
-        text = text.replace("'s", 's')
-        text = text.replace('tys', 'ties')
-        return text
-
-    if re.search(r'\d"', n) is not None:
-        text = re.sub(NUMBER_REGEXP, lambda x: num2words(maybe_to_numeric(x.group(0)), lang='en'), n)
-        text = text.replace('"', ' inches')
-        return text
-
-    if re.search(r'\d+(?:th|st|nd|rd)', n) is not None:
-        n = re.sub(r'(\d+)(?:th|st|nd|rd)', r'\1', n)
-        text = re.sub(NUMBER_REGEXP, lambda x: num2words(maybe_to_numeric(x.group(0)), lang='en', to='ordinal'), n)
-        return text
-
-    if re.search(r'\d+[-.,!?]', n) is not None:
-        text = re.sub(NUMBER_REGEXP, lambda x: ' ' + num2words(maybe_to_numeric(x.group(0)), lang='en'), n)
-        return text
-    text = re.sub(NUMBER_REGEXP, lambda x: f" {num2words(maybe_to_numeric(x.group(0)), lang='en')} ", n)
-    return text
-
-
-def map_token_indices(text):
-    indexes = np.zeros(len(text), dtype=int)
+def get_tokens(text):
     tokens = []
     pointer = 0
     i = None
     for i, m in enumerate(re.finditer(TOKENS_SPLIT, text, flags=re.IGNORECASE)):
         start, end = m.span(0)
         t = text[max(pointer - 1, 0):start]
-        indexes[max(pointer - 1, 0):start] = i
         tokens.append(t)
         pointer = end
     if i is not None:
-        indexes[pointer - 1:] = i + 1
         tokens.append(text[pointer - 1:])
     else:
         tokens.append(text)
-    return indexes, tokens
-
-
-def get_span_insert(indices, start, end, insert_len):
-    token_indices = indices[start:end]
-    token_indices = np.unique(token_indices).tolist()
-    assert len(token_indices) == 1
-    token_index = token_indices[0]
-
-    new_token_indices = [token_index] * insert_len
-    return new_token_indices
-
-
-def perform_substitutions(text, substitutions, indices):
-    for substitution in substitutions:
-        pattern, repl, groups = substitution
-
-        repl_regex = repl
-        for i in groups:
-            repl_regex = repl_regex.replace('{}', fr'\{i}')
-        text_sub = re.sub(pattern, repl_regex, text)
-
-        inserts = []
-        for m in re.finditer(pattern, text):
-            start = m.start()
-            end = m.end()
-
-            sub_repl = repl[:]
-            for i in groups:
-                sub_repl = sub_repl.format(m.group(i))
-
-            new_token_indices = get_span_insert(indices, start, end, len(sub_repl))
-            inserts.append([start, new_token_indices, end])
-        for start, new_indices, end in sorted(inserts, reverse=True):
-            indices = np.concatenate([indices[:start], new_indices, indices[end:]]).flatten()
-        assert len(indices) == len(text_sub)
-        text = text_sub
-    return text, indices
-
+    return tokens
 
 def garbage_clean(text):
     text = re.sub(r'[^\w\']', r'', text)
@@ -147,62 +40,10 @@ def garbage_clean(text):
     return text
 
 
-def clean_text_with_mapping(text, for_mfa=True):
-    indices, tokens = map_token_indices(text)
-    tokens = [garbage_clean(t) for t in tokens]
-    return tokens, [], indices
-    #
-    # indices_words, words = map_token_indices(text)
-    # assert len(indices) == len(indices_words)
-    # tokens_map = defaultdict(set)
-    # for t, w in zip(indices, indices_words):
-    #     tokens_map[t].add(w)
-    #
-    # new_tokens = []
-    # backwards_step = 0
-    # for i, w in enumerate(words):
-    #     i -= backwards_step
-    #     w = re.sub(r'^[^\w*]+|[^*\w]+$', r'', w.strip())
-    #     if '*' in w:
-    #         w = preproc_swear_word(w)
-    #         w = re.sub(r'^[^\w]+|[^\w]+$', r'', w.strip())
-    #     w = re.sub(r'(\w)([уыаоэ])\2+$', r'\1\2', w.strip(), flags=re.IGNORECASE)
-    #     w = re.sub(r'^([уыаоэяию])\1+$', r'\1', w, flags=re.IGNORECASE)
-    #     w = change_numeric(w)
-    #     n_new_splits = len(re.split(TOKENS_SPLIT, w, flags=re.IGNORECASE))
-    #     if n_new_splits > 1:
-    #         for t, ws in tokens_map.items():
-    #             ws = [w + n_new_splits - 1 if w > i else w for w in ws]
-    #             if i in ws:
-    #                 ws.extend(list(range(i + 1, i + n_new_splits)))
-    #             tokens_map[t] = ws
-    #     if w:
-    #         if w in punctuation:
-    #             for t, ws in tokens_map.items():
-    #                 if i in ws:
-    #                     ws.remove(i)
-    #                 ws = [w - 1 if w > i else w for w in ws]
-    #                 tokens_map[t] = ws
-    #             backwards_step += 1
-    #             continue
-    #         new_tokens.append(w)
-    #     else:
-    #         for t, ws in tokens_map.items():
-    #             if i in ws:
-    #                 ws.remove(i)
-    #             ws = [w - 1 if w > i else w for w in ws]
-    #             tokens_map[t] = ws
-    #         backwards_step += 1
-    #
-    # if not for_mfa:
-    #     return tokens, tokens_map, indices
-    # return new_tokens, [], []
-
-
 def add_new_phrase(phrases, current_tokens):
     for token in current_tokens:
         token.pop('isupper')
-    valid_audio_spans = [t['audio_span'] for t in current_tokens if t['audio_span'] != (-1,-1)]
+    valid_audio_spans = [t['audio_span'] for t in current_tokens if t['audio_span'] != (-1, -1)]
     if not valid_audio_spans:
         return [], '', phrases
     phrases.append({
@@ -301,7 +142,7 @@ def align_tokens_in_subtitles(subtitles, tg_aligned):
         if not interval_strs:
             continue
 
-        indices, tokens = map_token_indices(text)
+        tokens = get_tokens(text)
         tokens_clean = [garbage_clean(t) for t in tokens]
         if len(tokens) == len(interval_words):
             for interval, t in zip(interval_words, tokens):
@@ -316,7 +157,7 @@ def align_tokens_in_subtitles(subtitles, tg_aligned):
             if not tokens_clean[i_t]:
                 aligned_tokens.append({
                     'text': tokens[i_t].strip(),
-                    'audio_span': (-1,-1),
+                    'audio_span': (-1, -1),
                 })
                 i_t += 1
                 continue
@@ -332,19 +173,19 @@ def align_tokens_in_subtitles(subtitles, tg_aligned):
                 i_w += 1
                 continue
             if "'" in tokens_clean[i_t]:
-                if ''.join(interval_strs[i_w:i_w+2]) == tokens_clean[i_t]:
+                if ''.join(interval_strs[i_w:i_w + 2]) == tokens_clean[i_t]:
                     aligned_tokens.append({
                         'text': tokens[i_t].strip(),
-                        'audio_span': (interval_words[i_w].minTime, interval_words[i_w+1].maxTime),
+                        'audio_span': (interval_words[i_w].minTime, interval_words[i_w + 1].maxTime),
                     })
                     i_t += 1
                     i_w += 2
                     continue
             if i_t + 1 < len(tokens):
                 next_matches = [
-                    (j_t, [j for j in range(i_w+1, len(interval_words))
-                    if tokens_clean[j_t] == interval_strs[j]])
-                    for j_t in range(i_t+1, len(tokens))
+                    (j_t, [j for j in range(i_w + 1, len(interval_words))
+                           if tokens_clean[j_t] == interval_strs[j]])
+                    for j_t in range(i_t + 1, len(tokens))
                 ]
                 if not any(m for i, m in next_matches):
                     next_i_w = len(interval_words)
@@ -374,12 +215,12 @@ def align_tokens_in_subtitles(subtitles, tg_aligned):
         if i_t < len(tokens):
             aligned_tokens.append({
                 'text': ''.join(tokens[i_t:]).strip(),
-                'audio_span': (-1,-1),
+                'audio_span': (-1, -1),
             })
     return aligned_tokens
 
 
-def main(videos, sub_folder, aligned_folder, videos_sorted=None, save_to=None):
+def align(videos, sub_folder, aligned_folder, videos_sorted=None, save_to=None):
     aligned_videos = {}
     for video_index, video_name in enumerate(tqdm(videos)):
         if os.path.isfile(os.path.join(save_to, video_name + '.json')):
@@ -399,12 +240,16 @@ def main(videos, sub_folder, aligned_folder, videos_sorted=None, save_to=None):
             json.dump(segmented_phrases, open(os.path.join(save_to, video_name + '.json'), 'w'), ensure_ascii=False)
     return aligned_videos
 
+def main(args):
+    aligned_folder = args.mfa_aligned_root
+    segmented_folder = os.path.join(args.dataset_root, 'subtitles_faligned')
+    sub_folder = os.path.join(args.dataset_root, 'sub')
+    metadata = json.load(open(os.path.join(args.dataset_root, 'meta_data.json'), encoding='utf-8'))
+    videos = sorted(list(metadata.keys()))
+    align(videos, sub_folder, aligned_folder, save_to=segmented_folder)
+
+
 
 if __name__ == '__main__':
-    standup_root = '../standup_eng'
-    aligned_folder = os.path.join(standup_root, 'mfa_data/standup_eng_aligned_beam100_retry_beam400')
-    segmented_folder = os.path.join(standup_root, 'subtitles_faligned')
-    sub_folder = os.path.join(standup_root, 'sub_postproc')
-    metadata = json.load(open(os.path.join(standup_root, 'meta_data.json'), encoding='utf-8'))
-    videos = sorted(list(metadata.keys()))
-    aligned_videos = main(videos, sub_folder, aligned_folder, save_to=segmented_folder)
+    args = parser.parse_args([] if "__file__" not in globals() else None)
+    main(args)
