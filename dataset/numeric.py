@@ -23,7 +23,7 @@ def maybe_to_numeric(val):
     if '.' in val_ and ',' in val_:
         val_ = val_.replace(',', '')
     elif ',' in val_:
-      val_ = val_.replace(',', '')
+        val_ = val_.replace(',', '')
     val_ = val_.replace(',', '.')
     if val_.isnumeric():
         type_ = float if '.' in val_ else int
@@ -37,7 +37,7 @@ def maybe_to_numeric(val):
     return val
 
 
-def change_numeric(w):
+def change_numeric_rus(w):
     ordinal = False
     m = re.match(ordinal_endings, w)
     if m is not None:
@@ -56,3 +56,63 @@ def change_numeric(w):
         i, suff = endings.get(ending, [1, ending])
         w = w[:-i] + suff
     return w
+
+
+NUMBER_REGEXP = r"\d+(?:[,\d]*\d)?(?:\.\d+)?"
+
+
+def change_numeric_eng(n):
+    if '911' in n:
+        n = n.replace('911', 'nine one one')
+
+    if '$' in n:
+        n = n.replace('$', '')
+
+        text = re.sub(NUMBER_REGEXP, lambda x: num2words(maybe_to_numeric(x.group(0)), lang='en') + ' dollars', n)
+        return text
+
+    if ':' in n:
+        h, m = n.split(':')
+        text = re.sub(NUMBER_REGEXP, lambda x: num2words(maybe_to_numeric(x.group(0)), lang='en'), h)
+        text += ' ' + re.sub(NUMBER_REGEXP,
+                             lambda x: num2words(maybe_to_numeric(x.group(0)), lang='en') if maybe_to_numeric(
+                                 x.group(0)) != 0 else '',
+                             m)
+        return text
+
+    if re.search(r"1\d{3}", n) is not None:
+        if re.search(r"\d\d00", n) is not None:
+            n = re.sub(r'00', r' hundred', n)
+            text = re.sub(NUMBER_REGEXP, lambda x: ' ' + num2words(maybe_to_numeric(x.group(0)), lang='en'), n)
+        else:
+            text = re.sub(r'\d{2}', lambda x: ' ' + num2words(maybe_to_numeric(x.group(0)), lang='en'), n)
+        text = text.replace("'s", 's')
+        text = text.replace('tys', 'ties')
+        return text
+
+    if '%' in n:
+        n = n.replace('%', ' percent')
+        text = re.sub(NUMBER_REGEXP, lambda x: num2words(maybe_to_numeric(x.group(0)), lang='en'), n)
+        return text
+
+    if re.search(r"\d'?s", n) is not None:
+        text = re.sub(NUMBER_REGEXP, lambda x: num2words(maybe_to_numeric(x.group(0)), lang='en'), n)
+        text = text.replace("'s", 's')
+        text = text.replace('tys', 'ties')
+        return text
+
+    if re.search(r'\d"', n) is not None:
+        text = re.sub(NUMBER_REGEXP, lambda x: num2words(maybe_to_numeric(x.group(0)), lang='en'), n)
+        text = text.replace('"', ' inches')
+        return text
+
+    if re.search(r'\d+(?:th|st|nd|rd)', n) is not None:
+        n = re.sub(r'(\d+)(?:th|st|nd|rd)', r'\1', n)
+        text = re.sub(NUMBER_REGEXP, lambda x: num2words(maybe_to_numeric(x.group(0)), lang='en', to='ordinal'), n)
+        return text
+
+    if re.search(r'\d+[-.,!?]', n) is not None:
+        text = re.sub(NUMBER_REGEXP, lambda x: ' ' + num2words(maybe_to_numeric(x.group(0)), lang='en'), n)
+        return text
+    text = re.sub(NUMBER_REGEXP, lambda x: f" {num2words(maybe_to_numeric(x.group(0)), lang='en')} ", n)
+    return text
