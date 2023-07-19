@@ -1,6 +1,7 @@
 import os
 import re
 import textgrid
+import argparse
 import json
 from tqdm import tqdm
 import subprocess
@@ -11,6 +12,11 @@ from swear_words_rus import REGEXPS as REGEXPS_RUS
 
 REPLACED_SWEARS_DICT = json.load(open('replaced_swears.json'))
 
+parser = argparse.ArgumentParser()
+
+parser.add_argument("--dataset_root", type=str, default='../standup_dataset', help="Path to the dataset folder")
+parser.add_argument("--do_audio", action="store_true", help="Whether to also prepare audio")
+parser.add_argument("--lang", type=str, default='ENG', help="RUS or ENG dataset to preprocess")
 
 def convert_sentences_to_textgrid(sentences, output_file, speaker_name):
     tg = textgrid.TextGrid()
@@ -155,3 +161,7 @@ def main(args):
             subprocess.run(
                 f'ffmpeg -i "{audio_path}" "{audio_path_wav}"  -hide_banner -loglevel error',
                 shell=True, check=True, text=True)
+
+if __name__ == '__main__':
+    args = parser.parse_args([] if "__file__" not in globals() else None)
+    main(args)
