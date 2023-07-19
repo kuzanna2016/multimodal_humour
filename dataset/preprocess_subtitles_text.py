@@ -11,7 +11,6 @@ REPLACED_SWEARS_DICT = json.load(open('replaced_swears.json'))
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--dataset_root", type=str, default='../standup_dataset', help="Path to the dataset folder")
-parser.add_argument("--do_audio", action="store_true", help="Whether to also prepare audio")
 parser.add_argument("--lang", type=str, default='ENG', help="RUS or ENG dataset to preprocess")
 
 def clean_up_whitespace(s):
