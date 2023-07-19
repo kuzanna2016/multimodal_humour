@@ -2,10 +2,9 @@ import os, sys, librosa, torch, numpy as np
 
 sys.path.append('./utils/')
 import laugh_segmenter
-import models, configs
+import configs
 import dataset_utils, audio_utils, data_loaders, torch_utils
 from functools import partial
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 def set_up_ld_model():
     sample_rate = 8000
