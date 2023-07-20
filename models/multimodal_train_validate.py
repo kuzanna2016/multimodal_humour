@@ -1,34 +1,16 @@
 import os
-import re
-import scipy.signal as signal
 import numpy as np
-import pandas as pd
-import soundfile as sf
-import librosa
-# import auditok
 from tqdm.notebook import tqdm
 import json
 from collections import defaultdict
-import random
-import cv2
-import jsonlines
 import itertools
 
-from sklearn.metrics import precision_recall_fscore_support, accuracy_score
-
-import IPython
-import IPython.display as ipd
-import matplotlib.pyplot as plt
-from math import ceil
-import sklearn
 from sklearn import svm
-from sklearn.metrics import classification_report, confusion_matrix
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import FunctionTransformer, StandardScaler
-from text_train_validate import get_documents
+from sklearn.metrics import classification_report, precision_recall_fscore_support, accuracy_score
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedShuffleSplit
-# from razdel import tokenize
 import argparse
+from utils import get_splits_audio_spans_labels, get_documents
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_roots", nargs="+", type=str, default=('../standup_dataset',),
@@ -39,33 +21,33 @@ parser.add_argument("--n_splits", type=int, default=4,
                     help="Number of splits in StratifiedShuffleSplit cross-validation")
 
 
-def get_splits_audio_spans_labels(documents, video_names, window=5):
-    split_spans_and_labels = []
-    for d in sorted(video_names):
-        subs = documents[d]
-        split_spans_and_labels.extend([
-            [d, j, [s['audio_span'] for s in split], split[-1]['label']]
-            for j, split in enumerate(zip(*[subs[i:] for i in range(window)]))
-        ])
-    split_labels = [s[-1] for s in split_spans_and_labels]
-    return split_spans_and_labels, split_labels
-
-
-def load_text_features(standup_root):
-    embeddings_fp = os.path.join(standup_root, 'dataset', 'text_features', 'embeddings.npy')
+def load_text_features(dataset_root):
+    embeddings_fp = os.path.join(dataset_root, 'features', 'bert_features', 'embeddings.npy')
     bert_embeddings = np.load(embeddings_fp, allow_pickle=True)
     bert_cls_embeddings = np.vstack([a[0] for a in bert_embeddings])
     return bert_cls_embeddings
 
 
-def load_of_mean_features(standup_root):
+def load_of_mean_features(dataset_root):
     open_face_features = np.load(
-        os.path.join(standup_root, 'dataset', 'facial_features', 'mean_context_utterance_features.npy'))
+        os.path.join(dataset_root, 'features', 'facial_mean_context_utterance_features.npy'))
     return open_face_features
 
 
-def load_mean_video_features(standup_root):
-    video_features = np.load(os.path.join(standup_root, 'dataset', 'video_mean_features.npy'))
+def load_mean_video_features(dataset_root, n_samples, meta_data):
+    fp = os.path.join(dataset_root, 'features', 'video_mean_features.npy')
+    if os.path.isfile(fp):
+        video_features = np.load(fp)
+    else:
+        video_features = np.empty((n_samples, 768), dtype=float)
+        i = 0
+        for video_name in tqdm(sorted(meta_data.keys())):
+            vf = np.load(os.path.join(dataset_root, 'features', 'video_features', video_name + '.npy'))
+            mean_vector = vf.mean(axis=1)
+            n_samples = mean_vector.shape[0]
+            video_features[i:i + n_samples] = mean_vector
+            i += n_samples
+        np.save(os.path.join(dataset_root, 'dataset', 'video_mean_features.npy'), video_features)
     return video_features
 
 
@@ -76,7 +58,7 @@ def load_lang_features(root):
 
     text_features = load_text_features(root)
     open_face_features = load_of_mean_features(root)
-    video_features = load_mean_video_features(root)
+    video_features = load_mean_video_features(root, len(split_labels))
     return text_features, open_face_features, video_features, split_labels
 
 

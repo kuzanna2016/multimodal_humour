@@ -1,29 +1,19 @@
 import os
 import json
 import argparse
-import re
 import numpy as np
-import pandas as pd
 from tqdm import tqdm
-from collections import defaultdict
-import random
-import matplotlib.pyplot as plt
-from transformers import AutoTokenizer
-from transformers import AutoModelForSequenceClassification, AutoModel
-from transformers import TrainingArguments, Trainer
-from datasets import Dataset
-import jsonlines
 import torch
-from functools import partial
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 from sklearn import svm
-from sklearn.feature_extraction.text import TfidfTransformer, TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import StratifiedShuffleSplit
 from razdel import tokenize as rus_tokenize
 from nltk.tokenize import word_tokenize as eng_tokenize
 
 from bert import train as bert_train, load_model as load_bert_model, create_dataset as create_bert_dataset
 from colbert import train as colbert_train, load_model as load_colbert_model, create_dataset as create_colbert_dataset
+from utils import get_documents
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_root", type=str, default='../standup_dataset', help="Path to the dataset folder")
@@ -42,18 +32,6 @@ parser.add_argument("--wd", type=float, default=0.1, help='Weight decay')
 parser.add_argument("--lr", type=float, default=5e-5, help='Learning rate')
 parser.add_argument("--save_ratio", type=int, default=4, help='How many times save the results during an epoch')
 parser.add_argument("--lang", type=str, default='RUS', help="Language for TFIDF tokenization")
-
-
-def get_documents(root):
-    subtitles_annotated_folder = os.path.join(root, 'subtitles_faligned_labeled')
-    documents = {}
-    for fn in os.listdir(subtitles_annotated_folder):
-        video_name = os.path.splitext(fn)[0]
-        if video_name in documents:
-            continue
-        subtitles = json.load(open(os.path.join(subtitles_annotated_folder, fn)))
-        documents[video_name] = subtitles
-    return documents
 
 
 def create_dataset(root, labeled=True):

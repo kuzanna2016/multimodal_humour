@@ -2,6 +2,7 @@ import os
 import subprocess
 import re
 import pandas as pd
+import json
 
 
 def clean_title(title):
@@ -37,6 +38,30 @@ def load_validation_data(standup_root):
 
     annotations = pd.concat(dfs, axis=0)
     return titles, annotations
+
+
+def get_documents(root):
+    subtitles_annotated_folder = os.path.join(root, 'subtitles_faligned_labeled')
+    documents = {}
+    for fn in os.listdir(subtitles_annotated_folder):
+        video_name = os.path.splitext(fn)[0]
+        if video_name in documents:
+            continue
+        subtitles = json.load(open(os.path.join(subtitles_annotated_folder, fn)))
+        documents[video_name] = subtitles
+    return documents
+
+
+def get_splits_audio_spans_labels(documents, video_names, window=5):
+    split_spans_and_labels = []
+    for d in sorted(video_names):
+        subs = documents[d]
+        split_spans_and_labels.extend([
+            [d, j, [s['audio_span'] for s in split], split[-1]['label']]
+            for j, split in enumerate(zip(*[subs[i:] for i in range(window)]))
+        ])
+    split_labels = [s[-1] for s in split_spans_and_labels]
+    return split_spans_and_labels, split_labels
 
 
 def get_laughs_from_annotation(annotations, video_name, include_applause=False):
