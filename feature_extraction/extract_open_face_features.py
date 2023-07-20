@@ -6,27 +6,30 @@ import pandas as pd
 from tqdm import tqdm
 
 from utils import get_documents, get_splits_audio_spans_labels
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_root", type=str, default='../standup_dataset', help="Path to the dataset folder")
 
 
 def prepare_df(of_df):
-  of_df.columns = [col.replace(" ", "") for col in of_df.columns]
-  face_parameters_index = of_df.loc[:, 'p_0':'p_33'].columns.values
-  aus_index = of_df.loc[:, 'AU01_r':'AU45_c'].columns.values
-  gaze_index = ['gaze_angle_x', 'gaze_angle_y']
-  columns = ['timestamp', *gaze_index, *aus_index, *face_parameters_index]
-  of_df = of_df.loc[of_df.confidence >= 0.8, columns]
-  of_df['timestamp'] = pd.to_datetime(of_df['timestamp'], unit='s')
-  of_df.set_index('timestamp', inplace=True)
-  of_df = of_df.fillna(0)
-  return of_df
+    of_df.columns = [col.replace(" ", "") for col in of_df.columns]
+    face_parameters_index = of_df.loc[:, 'p_0':'p_33'].columns.values
+    aus_index = of_df.loc[:, 'AU01_r':'AU45_c'].columns.values
+    gaze_index = ['gaze_angle_x', 'gaze_angle_y']
+    columns = ['timestamp', *gaze_index, *aus_index, *face_parameters_index]
+    of_df = of_df.loc[of_df.confidence >= 0.8, columns]
+    of_df['timestamp'] = pd.to_datetime(of_df['timestamp'], unit='s')
+    of_df.set_index('timestamp', inplace=True)
+    of_df = of_df.fillna(0)
+    return of_df
+
 
 def get_span(df, span):
-  start = pd.to_datetime(span[0], unit='s')
-  end = pd.to_datetime(span[1], unit='s')
-  filtered_df = df[(df.index >= start) & (df.index <= end)]
-  return filtered_df.to_numpy()
+    start = pd.to_datetime(span[0], unit='s')
+    end = pd.to_datetime(span[1], unit='s')
+    filtered_df = df[(df.index >= start) & (df.index <= end)]
+    return filtered_df.to_numpy()
+
 
 def main(args, window=5):
     meta_data = json.load(open(os.path.join(args.dataset_root, 'meta_data.json')))

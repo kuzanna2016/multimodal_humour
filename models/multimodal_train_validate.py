@@ -104,7 +104,7 @@ def main(args):
     n_samples = y.shape[0]
     modalities = ['text', 'video', 'facial']
     X = np.empty(n_samples, dtype=float)
-    models_folder = os.path.join(args.model_root, f'models_multimodal_{"|".join(args.langs)}_baseline')
+    models_folder = os.path.join(dataset_root, args.model_root, f'models_multimodal_{"|".join(args.langs)}_baseline')
     os.makedirs(models_folder, exist_ok=True)
     multilingual = len(args.langs) > 1
     for train_indx, test_indx in tqdm(sss.split(X, y), total=args.n_splits):

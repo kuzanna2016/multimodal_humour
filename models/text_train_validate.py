@@ -84,7 +84,8 @@ def run_svm(split_dataset, n_splits, tokenizer_func, models_path):
 def main(args):
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     dataset = create_dataset(args.dataset_root)
-    models_path = os.path.join(args.models_path, args.model_name)
+    models_path = os.path.join(args.dataset_root, args.models_path, args.model_name)
+    os.makedirs(models_path, exist_ok=True)
     if 'svm' == args.model_name:
         if args.lang == 'RUS':
             tokenizer_func = lambda s: [_.text for _ in rus_tokenize(s)]

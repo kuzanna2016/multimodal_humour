@@ -121,6 +121,6 @@ def get_search_windows(subtitles, max_duration, max_window_length=0.7, min_pause
 
 
 def detect_laughs_in_subtitle(laughs, start, end):
-    for s, e, t in laughs:
+    for s, e, *_ in laughs:
         if interval_overlap((s, e), (start, end)) > 0:
             yield (s, e)
