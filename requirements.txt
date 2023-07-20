@@ -10,3 +10,7 @@ sklearn~=0.0
 scikit-learn~=0.24.1
 pandas~=1.2.4
 transformers~=4.25.1
+librosa~=0.10.0.post2
+matplotlib~=3.4.1
+soundfile~=0.12.1
+auditok~=0.2.0

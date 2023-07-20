@@ -8,7 +8,7 @@ def clean_title(title):
     title = re.sub(r'[|.,"/]', r'', title)
     title = re.sub(r'й', r'й', title)
     title = re.sub(r'ё', r'ё', title)
-    title = re.sub(r'é',r'é', title)
+    title = re.sub(r'é', r'é', title)
     return title
 
 
@@ -81,17 +81,19 @@ def norm_subtitles_spans(sentences):
             s1[0] = end
     return sentences
 
+
 def get_search_windows(subtitles, max_duration, max_window_length=0.7, min_pause_length=0.2):
-  for ((_, end, _), (start,_,_)) in zip(subtitles, subtitles[1:]):
-    duration = start - end
-    if duration > min_pause_length:
-      yield (end, start)
-    else:
-      yield (end, min([end+max_window_length, max_duration]))
-  end = subtitles[-1][1]
-  yield (end, min([end+max_window_length, max_duration]))
+    for ((_, end, _), (start, _, _)) in zip(subtitles, subtitles[1:]):
+        duration = start - end
+        if duration > min_pause_length:
+            yield (end, start)
+        else:
+            yield (end, min([end + max_window_length, max_duration]))
+    end = subtitles[-1][1]
+    yield (end, min([end + max_window_length, max_duration]))
+
 
 def detect_laughs_in_subtitle(laughs, start, end):
-  for s, e, t in laughs:
-    if interval_overlap((s,e), (start, end)) > 0:
-      yield (s, e)
+    for s, e, t in laughs:
+        if interval_overlap((s, e), (start, end)) > 0:
+            yield (s, e)
