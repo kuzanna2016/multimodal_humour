@@ -20,14 +20,14 @@ The scripts for dataset collection, preprocessing, and laughter detection labeli
   requirements:
     - `label_with_annotation.py`: Labels validation videos with manually annotated laughter.
     - `laughter_detection_model.py`: Sets up the laughter-detection model.
-    - `laughter_detection_cross_validation.py`: Runs hyperparameter search for the laughter-detection model.
+    - `laughter_detection_experiments.py`: Runs hyperparameter search for the laughter-detection model.
     - `label_with_laughter_detection.py`: Labels videos with laughter-detection results.
     - `vocal_remover.py`: Runs the vocal-remover model. Should be run from inside the [vocal-remover
       project](https://github.com/tsurumeso/vocal-remover) after installing its requirements.
 - `peak_detection`: Laughter detection experiments for the peak detection approach:
     - `extract_audio_features.py`: Sets up the AudioTransformer model for audio features extraction.
-    - `peak_detection_cross_validation.py`: Runs hyperparameter search for the peak detection threshold.
-    - `clusterization_cross_validation.py`: Runs hyperparameter search for clusterization.
+    - `peak_detection_experiments.py`: Runs hyperparameter search for the peak detection threshold.
+    - `clusterization_experiments.py`: Runs hyperparameter search for clusterization.
     - `plot_clustering.py`: Plots clustering results with PCA-reduced points.
 
 ## Feature Extraction for Multimodal SVM Model

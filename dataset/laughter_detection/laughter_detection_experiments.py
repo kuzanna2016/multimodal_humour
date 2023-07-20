@@ -101,7 +101,7 @@ def main(args):
                 log[k]['recall'].append(recall)
                 log[k]['f1'].append(f1)
     json.dump(log, open(
-        os.path.join(args.dataset_root, f'laughter_detection_in_subtitle_{validation_type}_cross_validation.json'),
+        os.path.join(args.dataset_root, f'laughter_detection_in_subtitle_{validation_type}_labeling_accuracy_logs.json'),
         'w'))
 
 
