@@ -10,7 +10,7 @@ from const import PEAK_DETECTION_VIDEOS
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_root", type=str, default='../standup_dataset', help="Path to the dataset folder")
-parser.add_argument("--all_videos", store_action=True,
+parser.add_argument("--all_videos", action="store_true",
                     help="Whether to subtract channels in all audio folder files, by default only considers audios picked for peak detection")
 
 
