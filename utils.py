@@ -20,6 +20,7 @@ def get_tier_by_name(textgrid_obj, tier_name):
 
 
 def load_validation_data(standup_root):
+    # TODO: replace
     with open(os.path.join(standup_root, 'annotation', 'titles.txt'), encoding='utf-8') as f:
         titles = f.read().splitlines()
     titles = [clean_title(t) for t in titles]
@@ -56,7 +57,7 @@ def interval_overlap(interval0, interval1):
     return overlap
 
 
-def cut_segment(fp, start, end, temp_fp='', play=True, rm=True, ext='mp4', with_codec=False):
+def cut_segment(fp, start, end, temp_fp='', rm=True, ext='mp4', with_codec=False):
     duration = end - start
     temp_fp = os.path.join(temp_fp, f'temp.{ext}')
     if with_codec:
@@ -79,3 +80,18 @@ def norm_subtitles_spans(sentences):
             s0[1] = start
             s1[0] = end
     return sentences
+
+def get_search_windows(subtitles, max_duration, max_window_length=0.7, min_pause_length=0.2):
+  for ((_, end, _), (start,_,_)) in zip(subtitles, subtitles[1:]):
+    duration = start - end
+    if duration > min_pause_length:
+      yield (end, start)
+    else:
+      yield (end, min([end+max_window_length, max_duration]))
+  end = subtitles[-1][1]
+  yield (end, min([end+max_window_length, max_duration]))
+
+def detect_laughs_in_subtitle(laughs, start, end):
+  for s, e, t in laughs:
+    if interval_overlap((s,e), (start, end)) > 0:
+      yield (s, e)

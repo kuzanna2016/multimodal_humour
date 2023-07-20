@@ -9,7 +9,7 @@ import numpy as np
 import textgrid
 from utils import get_tier_by_name, norm_subtitles_spans
 from swear_words import preproc_swear_word
-from numeric import ordinal_endings, change_numeric
+from numeric import ordinal_endings, change_numeric_rus
 
 punctuation += '»«…—'
 punctuation = punctuation.replace(',', '')
@@ -114,7 +114,7 @@ def clean_text_with_mapping(text, for_mfa=True):
             w = re.sub(r'^[^\w]+|[^\w]+$', r'', w.strip())
         w = re.sub(r'(\w)([уыаоэ])\2+$', r'\1\2', w.strip(), flags=re.IGNORECASE)
         w = re.sub(r'^([уыаоэяию])\1+$', r'\1', w, flags=re.IGNORECASE)
-        w = change_numeric(w)
+        w = change_numeric_rus(w)
         n_new_splits = len(re.split(TOKENS_SPLIT, w, flags=re.IGNORECASE))
         if n_new_splits > 1:
             for t, ws in tokens_map.items():

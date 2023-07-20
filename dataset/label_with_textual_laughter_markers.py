@@ -29,6 +29,6 @@ def main(args):
                 subs[i]['label'] = 1
         json.dump(subs, open(os.path.join(subtitles_faligned_fp, video_name + '.json'), 'w'), ensure_ascii=False)
 
-    if __name__ == '__main__':
-        args = parser.parse_args([] if "__file__" not in globals() else None)
-        main(args)
+if __name__ == '__main__':
+    args = parser.parse_args([] if "__file__" not in globals() else None)
+    main(args)
