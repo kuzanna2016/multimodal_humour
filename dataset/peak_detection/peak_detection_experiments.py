@@ -29,10 +29,10 @@ def merge_regions(audio_regions, max_silence=0):
 
 def main(args):
     logs = defaultdict(lambda: defaultdict(dict))
-    spans_folder = os.path.join(args.dataset_root, 'detected_peaks')
+    spans_folder = os.path.join(args.dataset_root, 'experiments', 'detected_peaks')
     os.makedirs(spans_folder, exist_ok=True)
     meta_data = json.load(open(os.path.join(args.dataset_root, 'meta_data.json')))
-    annotated_labeled_subtitles_folder = os.path.join(args.dataset_root, 'subtitles_faligned_annotation_labeled')
+    annotated_labeled_subtitles_folder = os.path.join(args.dataset_root, 'preprocessed_sub', 'subtitles_faligned_annotation_labeled')
     audio_folder = os.path.join(args.dataset_root, 'audio_subtracted')
 
     videos = [clean_title(v) for vs in PEAK_DETECTION_VIDEOS.values() for v in vs]
@@ -70,7 +70,9 @@ def main(args):
                 'recall': recall,
                 'f1': f1
             }
-    json.dump(logs, open(os.path.join(args.dataset_root, 'peak_detection_no_cluster_labeling_accuracy_logs.json'), 'w'))
+    output_folder = os.path.join(args.dataset_root, 'experiments', 'clusterization_experiments')
+    os.makedirs(output_folder, exist_ok=True)
+    json.dump(logs, open(os.path.join(output_folder,'peak_detection_no_cluster_labeling_accuracy_logs.json'), 'w'))
 
 
 if __name__ == '__main__':

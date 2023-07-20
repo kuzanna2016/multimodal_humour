@@ -22,19 +22,20 @@ def main(args):
     videos = [clean_title(v) for vs in PEAK_DETECTION_VIDEOS.values() for v in vs]
     meta_data = json.load(open(os.path.join(args.dataset_root, 'meta_data.json')))
 
-    spans_folder = os.path.join(args.dataset_root, 'detected_peaks')
-    experiments_folder = os.path.join(args.dataset_root, 'clusterization_experiments')
+    spans_folder = os.path.join(args.dataset_root, 'experiments', 'detected_peaks')
+    experiments_folder = os.path.join(args.dataset_root, 'experiments', 'clusterization_experiments')
     logs_folder = os.path.join(experiments_folder, 'clusterization_logs')
     plots_folder = os.path.join(experiments_folder, 'clusterization_plots')
     clustering_labels_folder = os.path.join(experiments_folder, 'clusterization_labels')
-    annotated_labeled_subtitles_folder = os.path.join(args.dataset_root, 'subtitles_faligned_annotation_labeled')
+    annotated_labeled_subtitles_folder = os.path.join(args.dataset_root, 'preprocessed_sub', 'subtitles_faligned_annotation_labeled')
     for video_name in videos:
         fn = video_name + '.json'
         annotated_subtitles = json.load(open(os.path.join(annotated_labeled_subtitles_folder, fn)))
         not_labeled = [s[:3] for s in annotated_subtitles]
         search_windows = list(get_search_windows(not_labeled, max_duration=meta_data[video_name]['duration']))
         true = [s[3] for s in annotated_subtitles]
-        reversed_fp = os.path.join(experiments_folder, 'reverse_labeles', video_name + '.json')
+        reversed_fp = os.path.join(experiments_folder, 'reverse_labels', video_name + '.json')
+        os.makedirs(os.path.join(experiments_folder, 'reverse_labels'), exist_ok=True)
         if os.path.isfile(reversed_fp):
             reverse_dict = json.load(open(reversed_fp))
         else:
@@ -85,8 +86,8 @@ def main(args):
                 log_labeling[experiment][alg][video_name]['precision'] = precision
                 log_labeling[experiment][alg][video_name]['recall'] = recall
                 log_labeling[experiment][alg][video_name]['f1'] = f1
-        json.dump(reverse_dict, open(os.path.join(experiments_folder, 'reverse_labeles', video_name + '.json'), 'w'))
-    json.dump(log_labeling, open(os.path.join(experiments_folder, 'labeling_accuracy_logs.json'), 'w'))
+        json.dump(reverse_dict, open(os.path.join(experiments_folder, 'reverse_labels', video_name + '.json'), 'w'))
+    json.dump(log_labeling, open(os.path.join(experiments_folder, 'peak_detection_cluster_labeling_accuracy_logs.json'), 'w'))
 
 
 if __name__ == '__main__':

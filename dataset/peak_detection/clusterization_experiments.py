@@ -21,7 +21,7 @@ parser.add_argument("--trim", type=float, default=0.5,
 
 def cluster(last_hidden_states):
     labels = {}
-    kmeans = KMeans(n_clusters=2, random_state=0, n_init="auto").fit(last_hidden_states)
+    kmeans = KMeans(n_clusters=2, random_state=0).fit(last_hidden_states)
     labels['kmeans_labels'] = kmeans.labels_
 
     clustering = AgglomerativeClustering(n_clusters=2, linkage='average')
@@ -45,7 +45,7 @@ def cluster(last_hidden_states):
     labels['pca_reduced_states'] = reduced_states
     labels['pca_explained_variance_ratio'] = pca.explained_variance_ratio_
 
-    kmeans = KMeans(n_clusters=2, random_state=0, n_init="auto").fit(reduced_states)
+    kmeans = KMeans(n_clusters=2, random_state=0).fit(reduced_states)
     labels['kmeans_pca_labels'] = kmeans.labels_
     return labels, [k.replace('_labels', '') for k in labels if k.endswith('_labels')]
 
@@ -62,8 +62,8 @@ def label_regions(laughs, audio_regions, trim):
 
 
 def main(args):
-    spans_folder = os.path.join(args.dataset_root, 'detected_peaks')
-    experiments_folder = os.path.join(args.dataset_root, 'clusterization_experiments')
+    spans_folder = os.path.join(args.dataset_root, 'experiments', 'detected_peaks')
+    experiments_folder = os.path.join(args.dataset_root, 'experiments', 'clusterization_experiments')
     peaks_features_folder = os.path.join(experiments_folder, 'peaks_features')
     clustering_labels_folder = os.path.join(experiments_folder, 'clusterization_labels')
     plots_folder = os.path.join(experiments_folder, 'clusterization_plots')
@@ -80,7 +80,7 @@ def main(args):
     for video_name in videos:
         file_path_wav = os.path.join(audio_folder, video_name + '.wav')
         region = auditok.load(file_path_wav)
-        laughs = get_laughs_from_annotation(args.dataset_root, video_name)
+        laughs = get_laughs_from_annotation(annotations, args.dataset_root, video_name)
         for folder in tqdm(os.listdir(spans_folder)):
             experiment = folder + f'_trim{args.trim}'
             audio_regions = json.load(open(os.path.join(spans_folder, folder, video_name + '.json')))

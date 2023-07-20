@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 from sklearn import metrics
 
-cmap = plt.colormaps['tab10']
+cmap = plt.get_cmap('tab10')
 
 
 def plot_alg(ax, points, true_labels, pred_labels):
