@@ -11,7 +11,7 @@ parser.add_argument("--dataset_root", type=str, default='../standup_dataset', he
 def main(args):
     metadata = json.load(open(os.path.join(args.dataset_root, 'meta_data.json'), encoding='utf-8'))
     subtitles_faligned_fp = os.path.join(args.dataset_root, 'subtitles_faligned_labeled')
-    extracted_laughter_from_sub_fp = os.path.join(args.dataset_root, 'textual_laughter_markers')
+    extracted_laughter_from_sub_fp = os.path.join(args.dataset_root, 'preprocessed_sub', 'textual_laughter_markers')
     logs = []
     for video_name in metadata:
         subs = json.load(open(os.path.join(subtitles_faligned_fp, video_name + '.json')))
