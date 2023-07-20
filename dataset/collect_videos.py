@@ -110,12 +110,12 @@ def download_media(video, video_path, audio_path):
     url = video['url']
     video_output_path = os.path.join(video_path, title + '.mp4')
     subprocess.run(
-        f"youtube-dl -f 'bestvideo[ext=mp4]' -o '{video_output_path}' {url}",
+        f'youtube-dl -f "bestvideo[ext=mp4]" -o "{video_output_path}" {url}',
         shell=True, check=True, text=True)
 
     audio_output_path = os.path.join(audio_path, title + '.%(ext)s')
     subprocess.run(
-        f"youtube-dl -f 'bestaudio' -o '{audio_output_path}' {url}",
+        f'youtube-dl -f "bestaudio" -o "{audio_output_path}" {url}',
         shell=True, check=True, text=True)
 
 

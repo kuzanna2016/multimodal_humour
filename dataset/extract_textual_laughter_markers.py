@@ -11,7 +11,7 @@ parser.add_argument("--dataset_root", type=str, default='../standup_dataset', he
 
 
 def main(args):
-    extracted_laughter_from_sub_folder = os.path.join(args.dataset_root, 'textual_laughter_markers')
+    extracted_laughter_from_sub_folder = os.path.join(args.dataset_root, 'preprocessed_sub', 'textual_laughter_markers')
     os.makedirs(extracted_laughter_from_sub_folder, exist_ok=True)
 
     for fn in os.listdir(os.path.join(args.dataset_root, 'sub')):

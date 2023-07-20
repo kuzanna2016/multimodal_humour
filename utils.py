@@ -21,17 +21,19 @@ def get_tier_by_name(textgrid_obj, tier_name):
 
 
 def load_validation_data(standup_root):
-    # TODO: replace
-    with open(os.path.join(standup_root, 'annotation', 'titles.txt'), encoding='utf-8') as f:
-        titles = f.read().splitlines()
-    titles = [clean_title(t) for t in titles]
+    annotation_folder = os.path.join(standup_root, 'annotation')
+    titles = [
+        os.path.splitext(fn)[0]
+        for fn in sorted(os.listdir(annotation_folder))
+        if fn.endswith('.txt')
+    ]
 
     dfs = [
-        pd.read_csv(os.path.join(standup_root, 'annotation', f'standup{i}.txt'),
+        pd.read_csv(os.path.join(annotation_folder, fn + '.txt'),
                     sep='\t',
-                    names=['tier', 'start', 'end', 'duration'],
-                    usecols=[0, 2, 3, 4], dtype={'tier': str, 'start': float, 'end': float, 'duration': float})
-        for i in range(len(titles))
+                    names=['tier', 'start', 'end'],
+                    usecols=[0, 2, 3], dtype={'tier': str, 'start': float, 'end': float})
+        for fn in titles
     ]
     for i, df in enumerate(dfs):
         df['video_name'] = titles[i]

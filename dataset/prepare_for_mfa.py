@@ -67,6 +67,7 @@ def prepare_rus(text):
         w = change_numeric_rus(w)
         if w in punctuation:
             continue
+        new_words.append(w)
     text = ' '.join(new_words)
     return text
 
@@ -89,9 +90,9 @@ def prepare_eng(text):
 
 
 def main(args):
-    corpus_folder = os.path.join(args.dataset_root, 'mfa_data')
+    corpus_folder = os.path.join(args.dataset_root, 'mfa', 'dataset')
     os.makedirs(corpus_folder, exist_ok=True)
-    subtitles_folder = os.path.join(args.dataset_root, 'sub_postproc')
+    subtitles_folder = os.path.join(args.dataset_root, 'preprocessed_sub', 'subtitles_cleaned')
     metadata = json.load(open(os.path.join(args.dataset_root, 'meta_data.json'), encoding='utf-8'))
 
     videos = sorted(metadata.keys())

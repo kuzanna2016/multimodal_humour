@@ -81,7 +81,8 @@ def preproc_eng(text, video_name):
 
 
 def main(args):
-    postprocessed_sub_folder = os.path.join(args.dataset_root, 'sub_postproc')
+    postprocessed_sub_folder = os.path.join(args.dataset_root, 'preprocessed_sub', 'subtitles_cleaned')
+    os.makedirs(postprocessed_sub_folder, exist_ok=True)
     for fn in tqdm(os.listdir(os.path.join(args.dataset_root, 'sub'))):
         video_name = clean_title(os.path.splitext(fn)[0])
         subtitles = json.load(open(os.path.join(args.dataset_root, 'sub', fn)))

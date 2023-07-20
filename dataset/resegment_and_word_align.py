@@ -244,8 +244,9 @@ def align(videos, sub_folder, aligned_folder, videos_sorted=None, save_to=None):
 
 def main(args):
     aligned_folder = args.mfa_aligned_root
-    segmented_folder = os.path.join(args.dataset_root, 'subtitles_faligned')
-    sub_folder = os.path.join(args.dataset_root, 'sub')
+    segmented_folder = os.path.join(args.dataset_root, 'preprocessed_sub', 'subtitles_faligned')
+    os.makedirs(segmented_folder, exist_ok=True)
+    sub_folder = os.path.join(args.dataset_root, 'preprocessed_sub', 'subtitles_cleaned')
     metadata = json.load(open(os.path.join(args.dataset_root, 'meta_data.json'), encoding='utf-8'))
     videos = sorted(list(metadata.keys()))
     align(videos, sub_folder, aligned_folder, save_to=segmented_folder)
