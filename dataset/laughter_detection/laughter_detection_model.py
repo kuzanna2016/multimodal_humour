@@ -1,4 +1,4 @@
-import os, sys, librosa, torch, numpy as np
+import os, sys, torch, numpy as np
 
 sys.path.append('./utils/')
 import laugh_segmenter
@@ -64,7 +64,6 @@ def cut_threshold(probs, threshold, min_length, audio_path, log=1):
     instances = laugh_segmenter.get_laughter_instances(probs, threshold=threshold, min_length=float(min_length),
                                                        fps=fps)
     if log > 0:
-        print();
         print("found %d laughs." % (len(instances)))
     return instances
 

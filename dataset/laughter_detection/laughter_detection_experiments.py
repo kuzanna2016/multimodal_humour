@@ -76,7 +76,7 @@ def main(args):
                 audio_fp = os.path.join(audio_folder, video_name + '.mp4')
             else:
                 audio_fp = os.path.join(args.dataset_root, 'vocal-remover', video_name + '_Instruments.wav')
-            subtitles_fp = os.path.join(args.dataset_root, 'subtitles_faligned_annotation_labeled',
+            subtitles_fp = os.path.join(args.dataset_root, 'preprocessed_sub', 'subtitles_faligned_annotation_labeled',
                                         video_name + '.json')
             annotated_subtitles = json.load(open(subtitles_fp))
             subtitles = [s[:3] for s in annotated_subtitles]
@@ -101,7 +101,7 @@ def main(args):
                 log[k]['recall'].append(recall)
                 log[k]['f1'].append(f1)
     json.dump(log, open(
-        os.path.join(args.dataset_root, f'laughter_detection_in_subtitle_{validation_type}_labeling_accuracy_logs.json'),
+        os.path.join(args.dataset_root, 'experiments', f'laughter_detection_in_subtitle_{validation_type}_labeling_accuracy_logs.json'),
         'w'))
 
 

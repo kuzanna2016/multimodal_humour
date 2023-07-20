@@ -4,7 +4,7 @@ from tqdm import tqdm
 import argparse
 from laughter_detection_model import set_up_ld_model, load, predict, cut_threshold
 from utils import interval_overlap, cut_segment
-from laughter_detection_cross_validation import get_search_windows
+from utils import get_search_windows
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_root", type=str, default='../standup_dataset', help="Path to the dataset folder")
@@ -13,16 +13,19 @@ parser.add_argument("--min_length", type=float, default=0.01, help='Minimum leng
 
 MIN_WINDOW_LENGTH_FOR_LD = 1.3
 
+
 def main(args):
     audio_folder = os.path.join(args.dataset_root, 'vocal-remover')
     meta_data = json.load(open(os.path.join(args.dataset_root, 'meta_data.json')))
 
     temp_fp = 'temp.mp4'
     model, feature_fn, sample_rate, config, device = set_up_ld_model()
+    output_path = os.path.join(args.dataset_root, 'subtitles_faligned_labeled')
+    os.makedirs(output_path, exist_ok=True)
 
     for video_name in sorted(meta_data.keys()):
         audio_fp = os.path.join(audio_folder, video_name + '_Instruments.wav')
-        subtitles_fp = os.path.join(args.dataset_root, 'subtitles_faligned', video_name + '.json')
+        subtitles_fp = os.path.join(args.dataset_root, 'preprocessed_sub', 'subtitles_faligned', video_name + '.json')
         subtitles = json.load(open(subtitles_fp))
         duration = meta_data[video_name].get('duration', subtitles[-1]['audio_span'][1])
         search_windows = list(
@@ -44,7 +47,7 @@ def main(args):
             sub['label'] = 1 if instances else 0
             labeled_subtitles.append(sub)
             os.remove(temp_fp)
-        json.dump(labeled_subtitles, open(subtitles_fp, 'w'), ensure_ascii=False)
+        json.dump(labeled_subtitles, open(os.path.join(output_path, video_name + '.json'), 'w'), ensure_ascii=False)
 
 
 if __name__ == '__main__':
