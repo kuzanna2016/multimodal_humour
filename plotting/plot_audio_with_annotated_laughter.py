@@ -23,7 +23,7 @@ def subtract_channels(audio_path):
 def main(args):
     audio_folder = os.path.join(args.dataset_root, 'audio')
     video_name = args.video_name
-    annotations = load_validation_data(args.dataset_root)
+    titles, annotations = load_validation_data(args.dataset_root)
     if args.audio_type == 'orig':
         fp = os.path.join(audio_folder, video_name + '.mp4')
         data, sr = librosa.load(fp)
@@ -44,7 +44,7 @@ def main(args):
             s, e = s * sr, e * sr
             ax.axvspan(s, e, fill=True, color='g', alpha=0.2)
     if args.peaks:
-        spans_folder = os.path.join(args.dataset_root, 'detected_peaks')
+        spans_folder = os.path.join(args.dataset_root, 'experiments','detected_peaks')
         audio_regions = json.load(open(os.path.join(spans_folder, args.peaks, video_name + '.json')))
         for s, e in audio_regions:
             s, e = s * sr, e * sr
@@ -56,6 +56,8 @@ def main(args):
         args.audio_type
     ]
     name = video_name + '_' + '_'.join([v for v in name_values if v])
+    os.makedirs(os.path.join(args.dataset_root, 'plots'), exist_ok=True)
+    print('Saving to', os.path.join(args.dataset_root, 'plots', name + '.png'))
     fig.savefig(os.path.join(args.dataset_root, 'plots', name + '.png'))
 
 
