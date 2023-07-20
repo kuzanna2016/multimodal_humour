@@ -27,10 +27,12 @@ from colbert import train as colbert_train, load_model as load_colbert_model, cr
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_root", type=str, default='../standup_dataset', help="Path to the dataset folder")
-parser.add_argument("--models_path", type=str, default='models', help="Path to the folder where models and their logs will be saved")
+parser.add_argument("--models_path", type=str, default='models',
+                    help="Path to the folder where models and their logs will be saved")
 parser.add_argument("--model_name", type=str, default='svm',
                     help="One of the model names [svm, bert, rubert, colbert, bert_multilingual]")
-parser.add_argument("--unfreeze_bert", store_action=True, help="Unfreeze BERT in ColBERT training, default is freezed")
+parser.add_argument("--unfreeze_bert", action="store_true",
+                    help="Unfreeze BERT in ColBERT training, default is freezed")
 parser.add_argument("--cv_n_splits", type=int, default=4,
                     help='Number of splits in StratifiedShuffleSplit cross-validation')
 parser.add_argument("--epochs", type=int, default=5, help='Number of epochs to train')
@@ -42,16 +44,20 @@ parser.add_argument("--save_ratio", type=int, default=4, help='How many times sa
 parser.add_argument("--lang", type=str, default='RUS', help="Language for TFIDF tokenization")
 
 
-def create_dataset(root, labeled=True):
-    subtitles_folder = os.path.join(root, 'subtitles_faligned_labeled')
+def get_documents(root):
+    subtitles_annotated_folder = os.path.join(root, 'subtitles_faligned_labeled')
     documents = {}
-    for fn in os.listdir(subtitles_folder):
+    for fn in os.listdir(subtitles_annotated_folder):
         video_name = os.path.splitext(fn)[0]
         if video_name in documents:
             continue
-        subtitles = json.load(open(os.path.join(subtitles_folder, fn)))
+        subtitles = json.load(open(os.path.join(subtitles_annotated_folder, fn)))
         documents[video_name] = subtitles
+    return documents
 
+
+def create_dataset(root, labeled=True):
+    documents = get_documents(root)
     split_dataset = []
     window = 5
     for d, subs in sorted(documents.items()):
