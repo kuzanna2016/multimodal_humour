@@ -1,5 +1,5 @@
 # Multimodal Humour detection in stand-up comedy
-Materials from the paper "Multimodal and Multilingual Laughter Detection \\ in Stand-Up Comedy Videos"
+Materials from the paper "Multimodal and Multilingual Laughter Detection in Stand-Up Comedy Videos"
 
 ## Dataset Collection, Preprocessing, and Laughter Detection Labeling
 
